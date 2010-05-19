@@ -649,8 +649,11 @@ int ref_module(struct module *a, struct module *b)
 	err = add_module_usage(a, b);
 	if (err) {
 		module_put(b);
-		return err;
-	}
+	return ENOMEM;
+
+	use->module_which_uses = a;
+	list_add(&use->list, &b->modules_which_use_me);
+	no_warn = sysfs_create_link(b->holders_dir, &a->mkobj.kobj, a->name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ref_module);
@@ -1114,32 +1117,39 @@ static const struct kernel_symbol *resolve_symbol(struct module *mod,
 	struct module *owner;
 	const struct kernel_symbol *sym;
 	const unsigned long *crc;
+	DEFINE_WAIT(wait);
 	int err;
+	long timeleft = 30 * HZ;
 
-	mutex_lock(&module_mutex);
+again:
 	sym = find_symbol(name, &owner, &crc,
 			  !(mod->taints & (1 << TAINT_PROPRIETARY_MODULE)), true);
 	if (!sym)
-		goto unlock;
+		return NULL;
 
-	if (!check_version(info->sechdrs, info->index.vers, name, mod, crc,
-			   owner)) {
-		sym = ERR_PTR(-EINVAL);
-		goto getname;
+	if (!check_version(sechdrs, versindex, name, mod, crc, owner))
+		return NULL;
+
+	prepare_to_wait(&module_wq, &wait, TASK_INTERRUPTIBLE);
+	err = use_module(mod, owner);
+	if (likely(!err) || err != -EBUSY || signal_pending(current)) {
+		finish_wait(&module_wq, &wait);
+		return err ? NULL : sym;
 	}
 
-	err = ref_module(mod, owner);
-	if (err) {
-		sym = ERR_PTR(err);
-		goto getname;
-	}
-
-getname:
-	/* We must make copy under the lock if we failed to get ref. */
-	strncpy(ownername, module_name(owner), MODULE_NAME_LEN);
-unlock:
+	/* Module is still loading.  Drop lock and wait. */
 	mutex_unlock(&module_mutex);
-	return sym;
+	timeleft = schedule_timeout(timeleft);
+	mutex_lock(&module_mutex);
+	finish_wait(&module_wq, &wait);
+
+	/* Module might be gone entirely, or replaced.  Re-lookup. */
+	if (timeleft)
+		goto again;
+
+	printk(KERN_WARNING "%s: gave up waiting for init of module %s.\n",
+	       mod->name, owner->name);
+	return NULL;
 }
 
 static const struct kernel_symbol *
