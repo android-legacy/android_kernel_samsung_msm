@@ -1349,6 +1349,14 @@ config MODULE_UNLOAD
 	  anyway), which makes your kernel smaller, faster
 	  and simpler.  If unsure, say Y.
 
+config MODULE_FORCE_VERMAGIC
+	bool "Allow forced loading of modules with bad vermagic"
+	default n
+        depends on MODULE_FORCE_LOAD
+	help
+	  Allow loading of modules with version information that does not match
+	  the currently running kernel. This is very bad.
+
 config MODULE_FORCE_UNLOAD
 	bool "Forced module unloading"
 	depends on MODULE_UNLOAD && EXPERIMENTAL
