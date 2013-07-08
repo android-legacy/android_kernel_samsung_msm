@@ -2434,11 +2434,12 @@ static int check_modinfo(struct module *mod, struct load_info *info)
 		       mod->name, modmagic, vermagic);
 #ifdef CONFIG_MODULE_FORCE_VERMAGIC
                 err = try_to_force_load(mod, "magic");
+                if (err)
+                        return err;
+
 #else
 		return -ENOEXEC;
 #endif
-                if (err)
-                        return err;
 	}
 
 	if (get_modinfo(info, "staging")) {
