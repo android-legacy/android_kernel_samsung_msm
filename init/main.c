@@ -490,7 +490,7 @@ static int __init do_early_param(char *param, char *val)
 			board_hw_revision = 12;
 		else
 			board_hw_revision = 0;
-		printk("Cooper H/W revision : 0x0%d\n",board_hw_revision);
+		printk("Gio H/W revision : 0x0%d\n",board_hw_revision);
 	}
 #endif
 
