@@ -13,7 +13,7 @@
 #include "param.h"
 #include <samsung_flash.h>
 
-#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)
+#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) /*|| defined(CONFIG_MACH_GIO)*/
 #include "../../arch/arm/mach-msm/smd_private.h"
 #include "../../arch/arm/mach-msm/proc_comm.h"
 #endif
@@ -23,9 +23,9 @@
 #define NAND_SECTOR_PER_PAGE	8
 #define NAND_PAGE_SIZE 0x1000 
 
-#if defined(CONFIG_MACH_GIO)
+/*#if defined(CONFIG_MACH_GIO)
 #define CAL_PARAM // sensor calibration value
-#endif
+#endif*/
 
 #ifdef CAL_PARAM
 #define DATE_SIZE 13
@@ -53,10 +53,10 @@ typedef struct _param {
 	char efs_info[32];
 	char keystr[32];	// Å° ½ºÆ®¸µ À¯Ãâ ¹æÁö.
 
-#if 1 //defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)
+/*#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)
 	int ram_dump_level;
 	int ram_dump_level_init;
-#endif
+#endif*/
 	unsigned int first_boot_done; //rooting information
 	unsigned int custom_download_cnt;
 	char current_binary[30];
@@ -379,7 +379,7 @@ int _set_recovery_mode_done(void)
 
 }
 
-#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)
+/*#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)
 extern int (*set_ram_dump_level)(int ram_dump_level);
 
 int _set_ram_dump_level(int ram_dump_level)
@@ -456,7 +456,7 @@ int _get_ram_dump_level(void)
 	else
 	    return -1;
 }
-#endif
+#endif*/
 
 #ifdef CAL_PARAM
 static int cal_result_param_read(struct device *dev, struct device_attribute *attr, char *buf)
@@ -737,10 +737,10 @@ static DEVICE_ATTR(cal_offset, 0644, cal_offset_param_read, cal_offset_param_wri
 static int __init param_init(void)
 {
  	struct proc_dir_entry *ent, *ent2;
-#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)	
+/*#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)	
 	samsung_vendor1_id* smem_vendor1 = (samsung_vendor1_id *)smem_alloc(SMEM_ID_VENDOR1, sizeof(samsung_vendor1_id));	
 	int ram_dump_level;
-#endif	
+#endif*/
 		
 	ent = create_proc_entry("efs_info", S_IFREG | S_IWUSR | S_IRUGO, fsr_proc_dir);
 	ent->read_proc = param_read_proc_debug;
@@ -752,7 +752,7 @@ static int __init param_init(void)
 	set_recovery_mode = _set_recovery_mode;
 	set_recovery_mode_done = _set_recovery_mode_done;
 
-#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)
+/*#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)
 	set_ram_dump_level = _set_ram_dump_level;
 	get_ram_dump_level = _get_ram_dump_level;
 
@@ -765,7 +765,7 @@ static int __init param_init(void)
 	}
 
 	smem_vendor1->ram_dump_level = ram_dump_level;
-#endif	
+#endif*/
 
 #ifdef CAL_PARAM
 	if (device_create_file(kr3dm_dev_t, &dev_attr_cal_result) < 0)
