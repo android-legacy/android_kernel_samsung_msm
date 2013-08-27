@@ -10,22 +10,21 @@
 #include <asm/uaccess.h>
 #include <linux/device.h>
 
-#include "param.h"
-#include <samsung_flash.h>
+extern int msm_onenand_read_param(char *mBuf);
+extern int msm_onenand_write_param(char *mBuf);
 
-#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) /*|| defined(CONFIG_MACH_GIO)*/
+#include "param.h"
+//#include <samsung_flash.h>
+
+#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE)
 #include "../../arch/arm/mach-msm/smd_private.h"
 #include "../../arch/arm/mach-msm/proc_comm.h"
 #endif
 
-#define PARAM_nID				FSR_PARTID_BML9
-#define NAND_PAGE_PER_UNIT		64
-#define NAND_SECTOR_PER_PAGE	8
+//#define PARAM_nID				FSR_PARTID_BML9
+//#define NAND_PAGE_PER_UNIT		64
+//#define NAND_SECTOR_PER_PAGE	8
 #define NAND_PAGE_SIZE 0x1000 
-
-/*#if defined(CONFIG_MACH_GIO)
-#define CAL_PARAM // sensor calibration value
-#endif*/
 
 #ifdef CAL_PARAM
 #define DATE_SIZE 13
@@ -40,6 +39,8 @@ typedef struct _cal_param {
 } CAL_RESULT_PARAM;
 #endif
 
+struct proc_dir_entry *dir1;
+
 // must be same as bootable/bootloader/lk/app/aboot/common.h
 /* PARAM STRUCTURE */
 typedef struct _param {
@@ -53,10 +54,10 @@ typedef struct _param {
 	char efs_info[32];
 	char keystr[32];	// Å° ½ºÆ®¸µ À¯Ãâ ¹æÁö.
 
-/*#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)
+#if 1 //defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)
 	int ram_dump_level;
 	int ram_dump_level_init;
-#endif*/
+#endif
 	unsigned int first_boot_done; //rooting information
 	unsigned int custom_download_cnt;
 	char current_binary[30];
@@ -68,12 +69,12 @@ typedef struct _param {
 #endif
 } PARAM;
 
-FSRPartI pstPartI;
-int param_n1stVun;
+//FSRPartI pstPartI;
+//int param_n1stVun;
 char mBuf[NAND_PAGE_SIZE];
-extern struct proc_dir_entry *fsr_proc_dir;
+//extern struct proc_dir_entry *fsr_proc_dir;
 
-static int get_param_start_unit(void)
+/*static int get_param_start_unit(void)
 {
 	int cnt;
 
@@ -88,7 +89,7 @@ static int get_param_start_unit(void)
 	}
 
 	return param_n1stVun;
-}
+}*/
 
 static int param_read_proc_debug(char *page, char **start, off_t offset, int count, int *eof, void *data)
 {
@@ -99,9 +100,9 @@ static int param_read_proc_debug(char *page, char **start, off_t offset, int cou
 	memset(mBuf, 0xff, NAND_PAGE_SIZE);
 
 	// read first page from param block
-	err = samsung_bml_read(get_param_start_unit() * NAND_PAGE_PER_UNIT * NAND_SECTOR_PER_PAGE, NAND_SECTOR_PER_PAGE, mBuf, NULL);
+	err = msm_onenand_read_param(mBuf);
 	if(err) {
-		printk("PARAMERTER BML READ FAIL!\n");
+		printk("PARAMERTER READ FAIL!\n");
 		return err;
 	}
 
@@ -118,9 +119,7 @@ static int param_write_proc_debug(struct file *file, const char *buffer,
 {
 	char *buf;
 	int err;
-	unsigned int nByteRet;
 	PARAM efs;
-	FSRChangePA stChangePA;
 
 	if (count < 1)
 		return -EINVAL;
@@ -139,9 +138,9 @@ static int param_write_proc_debug(struct file *file, const char *buffer,
 
 	memset(mBuf, 0xff, NAND_PAGE_SIZE);
 
-	err = samsung_bml_read(get_param_start_unit() * NAND_PAGE_PER_UNIT * NAND_SECTOR_PER_PAGE, NAND_SECTOR_PER_PAGE, mBuf, NULL);
+	err = msm_onenand_read_param(mBuf);
 	if(err) {
-		printk("PARAMERTER BML READ FAIL!\n");
+		printk("PARAMERTER READ FAIL!\n");
 		return err;
 	}
 
@@ -151,33 +150,15 @@ static int param_write_proc_debug(struct file *file, const char *buffer,
 	memcpy(efs.efs_info, buf, (int)count);
 	memcpy(mBuf, &efs, sizeof(PARAM));
 
- 	stChangePA.nPartID  = PARAM_nID;
-	stChangePA.nNewAttr = FSR_BML_PI_ATTR_RW;
-	if (FSR_BML_IOCtl(0, FSR_BML_IOCTL_CHANGE_PART_ATTR , (UINT8 *) &stChangePA, sizeof(stChangePA), NULL, 0, &nByteRet) != FSR_BML_SUCCESS) {
-		return FS_DEVICE_FAIL;
-	} 
-
-	err = samsung_bml_erase(get_param_start_unit(), 1); 
+ 	// write first page from param block
+	err = msm_onenand_write_param(mBuf);
 	if(err) {
-		printk("PARAMERTER BML ERASE FAIL!\n");
+		printk("PARAMERTER WRITE FAIL!\n");
 		kfree(buf);
 		return err;
 	}
 
-	// read first page from param block
-	err = samsung_bml_write(get_param_start_unit() * NAND_PAGE_PER_UNIT, 1, mBuf, NULL);
-	if(err) {
-		printk("PARAMERTER BML WRITE FAIL!\n");
-		kfree(buf);
-		return err;
-	}
-
- 	stChangePA.nNewAttr = FSR_BML_PI_ATTR_RO;
-	if (FSR_BML_IOCtl(0, FSR_BML_IOCTL_CHANGE_PART_ATTR , (UINT8 *) &stChangePA, sizeof(stChangePA), NULL, 0, &nByteRet) != FSR_BML_SUCCESS) {
-		return FS_DEVICE_FAIL;
-	} 
-
-	kfree(buf);
+ 	kfree(buf);
 	return count;
 }
 
@@ -190,9 +171,9 @@ static int param_keystr_read_proc_debug(char *page, char **start, off_t offset, 
 	memset(mBuf, 0xff, NAND_PAGE_SIZE);
 
 	// read first page from param block
-	err = samsung_bml_read(get_param_start_unit() * NAND_PAGE_PER_UNIT * NAND_SECTOR_PER_PAGE, NAND_SECTOR_PER_PAGE, mBuf, NULL);
+	err = msm_onenand_read_param(mBuf);
 	if(err) {
-		printk("PARAMERTER BML READ FAIL!\n");
+		printk("PARAMERTER READ FAIL!\n");
 		return err;
 	}
 
@@ -210,9 +191,7 @@ static int param_keystr_write_proc_debug(struct file *file, const char *buffer,
 {
 	char *buf;
 	int err;
-	unsigned int nByteRet;
 	PARAM efs;
-	FSRChangePA stChangePA;
 
 	if (count < 1)
 		return -EINVAL;
@@ -231,9 +210,9 @@ static int param_keystr_write_proc_debug(struct file *file, const char *buffer,
 
 	memset(mBuf, 0xff, NAND_PAGE_SIZE);
 
-	err = samsung_bml_read(get_param_start_unit() * NAND_PAGE_PER_UNIT * NAND_SECTOR_PER_PAGE, NAND_SECTOR_PER_PAGE, mBuf, NULL);
+	err = msm_onenand_read_param(mBuf);
 	if(err) {
-		printk("PARAMERTER BML READ FAIL!\n");
+		printk("PARAMERTER READ FAIL!\n");
 		return err;
 	}
 
@@ -243,30 +222,12 @@ static int param_keystr_write_proc_debug(struct file *file, const char *buffer,
 	memcpy(efs.keystr, buf, (int)count);
 	memcpy(mBuf, &efs, sizeof(PARAM));
 
- 	stChangePA.nPartID  = PARAM_nID;
-	stChangePA.nNewAttr = FSR_BML_PI_ATTR_RW;
-	if (FSR_BML_IOCtl(0, FSR_BML_IOCTL_CHANGE_PART_ATTR , (UINT8 *) &stChangePA, sizeof(stChangePA), NULL, 0, &nByteRet) != FSR_BML_SUCCESS) {
-		return FS_DEVICE_FAIL;
-	} 
-
-	err = samsung_bml_erase(get_param_start_unit(), 1);
+	// write first page from param block
+	err = msm_onenand_write_param(mBuf);
 	if(err) {
-		printk("PARAMERTER BML ERASE FAIL!\n");
+		printk("PARAMERTER WRITE FAIL!\n");
 		kfree(buf);
 		return err;
-	}
-
-	// read first page from param block
-	err = samsung_bml_write(get_param_start_unit() * NAND_PAGE_PER_UNIT, 1, mBuf, NULL);
-	if(err) {
-		printk("PARAMERTER BML WRITE FAIL!\n");
-		kfree(buf);
-		return err;
-	}
-
- 	stChangePA.nNewAttr = FSR_BML_PI_ATTR_RO;
-	if (FSR_BML_IOCtl(0, FSR_BML_IOCTL_CHANGE_PART_ATTR , (UINT8 *) &stChangePA, sizeof(stChangePA), NULL, 0, &nByteRet) != FSR_BML_SUCCESS) {
-		return FS_DEVICE_FAIL;
 	}
 
 	kfree(buf);
@@ -278,17 +239,15 @@ extern int (*set_recovery_mode)(void);
 int _set_recovery_mode(void)
 {
 	int err;
-	unsigned int nByteRet;
 	PARAM param;
-	FSRChangePA stChangePA;
 
     printk("_set_recovery_mode++");
 
 	memset(mBuf, 0xff, NAND_PAGE_SIZE);
 
-	err = samsung_bml_read(get_param_start_unit() * NAND_PAGE_PER_UNIT * NAND_SECTOR_PER_PAGE, NAND_SECTOR_PER_PAGE, mBuf, NULL);
+	err = msm_onenand_read_param(mBuf);
 	if(err) {
-		printk("PARAMERTER BML READ FAIL!\n");
+		printk("PARAMERTER READ FAIL!\n");
 		return err;
 	}
 
@@ -297,32 +256,14 @@ int _set_recovery_mode(void)
 	param.booting_now = RECOVERY_ENTER_MODE;
 	memcpy(mBuf,&param,sizeof(PARAM));
 
-	stChangePA.nPartID  = PARAM_nID;
-	stChangePA.nNewAttr = FSR_BML_PI_ATTR_RW;
-	if (FSR_BML_IOCtl(0, FSR_BML_IOCTL_CHANGE_PART_ATTR , (UINT8 *) &stChangePA, sizeof(stChangePA), NULL, 0, &nByteRet) != FSR_BML_SUCCESS) {
-		return FS_DEVICE_FAIL;
-	}
-
-	err = samsung_bml_erase(get_param_start_unit(), 1);
-	if(err) {
-		printk("PARAMERTER BML ERASE FAIL!\n");
-		return err;
-	}
-
 	// write first page to param block
-	err = samsung_bml_write(get_param_start_unit() * NAND_PAGE_PER_UNIT, 1, mBuf, NULL);
+	err = msm_onenand_write_param(mBuf);
 	if(err) {
-		printk("PARAMERTER BML WRITE FAIL!\n");
+		printk("PARAMERTER WRITE FAIL!\n");
 		return err;
-	}
-
-	stChangePA.nNewAttr = FSR_BML_PI_ATTR_RO;
-	if (FSR_BML_IOCtl(0, FSR_BML_IOCTL_CHANGE_PART_ATTR , (UINT8 *) &stChangePA, sizeof(stChangePA), NULL, 0, &nByteRet) != FSR_BML_SUCCESS) {
-		return FS_DEVICE_FAIL;
 	}
 
 	return 0;
-
 }
 
 extern int (*set_recovery_mode_done)(void);
@@ -330,17 +271,15 @@ extern int (*set_recovery_mode_done)(void);
 int _set_recovery_mode_done(void)
 {
 	int err;
-	unsigned int nByteRet;
 	PARAM param;
-	FSRChangePA stChangePA;
 
     printk("_set_recovery_mode_done++");
 
 	memset(mBuf, 0xff, NAND_PAGE_SIZE);
 
-	err = samsung_bml_read(get_param_start_unit() * NAND_PAGE_PER_UNIT * NAND_SECTOR_PER_PAGE, NAND_SECTOR_PER_PAGE, mBuf, NULL);
+	err = msm_onenand_read_param(mBuf);
 	if(err) {
-		printk("PARAMERTER BML READ FAIL!\n");
+		printk("PARAMERTER READ FAIL!\n");
 		return err;
 	}
 
@@ -349,37 +288,19 @@ int _set_recovery_mode_done(void)
 	param.booting_now = RECOVERY_END_MODE;
 	memcpy(mBuf,&param,sizeof(PARAM));
 
-	stChangePA.nPartID  = PARAM_nID;
-	stChangePA.nNewAttr = FSR_BML_PI_ATTR_RW;
-	if (FSR_BML_IOCtl(0, FSR_BML_IOCTL_CHANGE_PART_ATTR , (UINT8 *) &stChangePA, sizeof(stChangePA), NULL, 0, &nByteRet) != FSR_BML_SUCCESS) {
-		return FS_DEVICE_FAIL;
-	}
-
-	err = samsung_bml_erase(get_param_start_unit(), 1);
-	if(err) {
-		printk("PARAMERTER BML ERASE FAIL!\n");
-		return err;
-	}
-
 	// write first page to param block
-	err = samsung_bml_write(get_param_start_unit() * NAND_PAGE_PER_UNIT, 1, mBuf, NULL);
+	err = msm_onenand_write_param(mBuf);
 	if(err) {
-		printk("PARAMERTER BML WRITE FAIL!\n");
+		printk("PARAMERTER WRITE FAIL!\n");
 		return err;
-	}
-
-	stChangePA.nNewAttr = FSR_BML_PI_ATTR_RO;
-	if (FSR_BML_IOCtl(0, FSR_BML_IOCTL_CHANGE_PART_ATTR , (UINT8 *) &stChangePA, sizeof(stChangePA), NULL, 0, &nByteRet) != FSR_BML_SUCCESS) {
-		return FS_DEVICE_FAIL;
 	}
 
     printk("_set_recovery_mode_done--");
 
 	return 0;
-
 }
 
-/*#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)
+#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE)
 extern int (*set_ram_dump_level)(int ram_dump_level);
 
 int _set_ram_dump_level(int ram_dump_level)
@@ -456,7 +377,7 @@ int _get_ram_dump_level(void)
 	else
 	    return -1;
 }
-#endif*/
+#endif
 
 #ifdef CAL_PARAM
 static int cal_result_param_read(struct device *dev, struct device_attribute *attr, char *buf)
@@ -736,23 +657,23 @@ static DEVICE_ATTR(cal_offset, 0644, cal_offset_param_read, cal_offset_param_wri
 
 static int __init param_init(void)
 {
- 	struct proc_dir_entry *ent, *ent2;
-/*#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)	
+ 	struct proc_dir_entry *ent, *ent2, *dir1;
+#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE)
 	samsung_vendor1_id* smem_vendor1 = (samsung_vendor1_id *)smem_alloc(SMEM_ID_VENDOR1, sizeof(samsung_vendor1_id));	
 	int ram_dump_level;
-#endif*/
-		
-	ent = create_proc_entry("efs_info", S_IFREG | S_IWUSR | S_IRUGO, fsr_proc_dir);
+#endif	
+	dir1 = proc_mkdir("LinuStoreIII", NULL);	
+	ent = create_proc_entry("efs_info", S_IFREG | S_IWUSR | S_IRUGO, dir1);
 	ent->read_proc = param_read_proc_debug;
 	ent->write_proc = param_write_proc_debug;
 
-	ent2 = create_proc_entry("keystr", S_IFREG | S_IWUSR | S_IRUGO, fsr_proc_dir);
+	ent2 = create_proc_entry("keystr", S_IFREG | S_IWUSR | S_IRUGO, dir1);
 	ent2->read_proc = param_keystr_read_proc_debug;
 	ent2->write_proc = param_keystr_write_proc_debug;
 	set_recovery_mode = _set_recovery_mode;
 	set_recovery_mode_done = _set_recovery_mode_done;
 
-/*#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)
+#if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE)
 	set_ram_dump_level = _set_ram_dump_level;
 	get_ram_dump_level = _get_ram_dump_level;
 
@@ -765,7 +686,7 @@ static int __init param_init(void)
 	}
 
 	smem_vendor1->ram_dump_level = ram_dump_level;
-#endif*/
+#endif	
 
 #ifdef CAL_PARAM
 	if (device_create_file(kr3dm_dev_t, &dev_attr_cal_result) < 0)
@@ -780,8 +701,8 @@ static int __init param_init(void)
 
 static void __exit param_exit(void)
 {
-	remove_proc_entry("efs_info", fsr_proc_dir);
-	remove_proc_entry("keystr", fsr_proc_dir);
+	remove_proc_entry("efs_info", dir1);
+	remove_proc_entry("keystr", dir1);
 }
 
 module_init(param_init);
