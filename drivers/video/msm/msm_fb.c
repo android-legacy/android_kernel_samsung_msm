@@ -1868,10 +1868,12 @@ static int msm_fb_open(struct fb_info *info, int user)
 	return 0;
 }
 
+#ifdef CONFIG_FB_MSM_MDP40
 static void msm_fb_free_base_pipe(struct msm_fb_data_type *mfd)
 {
 	return 	mdp4_overlay_free_base_pipe(mfd);
 }
+#endif
 
 static int msm_fb_release_all(struct fb_info *info, boolean is_all)
 {
@@ -1905,9 +1907,12 @@ static int msm_fb_release_all(struct fb_info *info, boolean is_all)
 				printk(KERN_ERR "msm_fb_release: can't turn off display!\n");
 				return ret;
 			}
-		} else {
+		} 
+#ifdef CONFIG_FB_MSM_MDP40
+		 else {
 			msm_fb_free_base_pipe(mfd);
 		}
+#endif
 	}
 
 	return ret;

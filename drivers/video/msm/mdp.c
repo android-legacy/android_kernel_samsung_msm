@@ -2430,6 +2430,7 @@ static int mdp_on(struct platform_device *pdev)
 	mfd = platform_get_drvdata(pdev);
 
 	pr_debug("%s:+\n", __func__);
+#ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
 	if (!(mfd->cont_splash_done)) {
 		if (mfd->panel.type == MIPI_VIDEO_PANEL)
 			mdp4_dsi_video_splash_done();
@@ -2439,7 +2440,7 @@ static int mdp_on(struct platform_device *pdev)
 		mdp_clk_ctrl(0);
 		mfd->cont_splash_done = 1;
 	}
-
+#endif
 	if(mfd->index == 0)
 		mdp_iommu_max_map_size = mfd->max_map_size;
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
@@ -3351,7 +3352,9 @@ void mdp_footswitch_ctrl(boolean on)
 	if (dsi_pll_vdda)
 		regulator_enable(dsi_pll_vdda);
 
+#ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
 	mipi_dsi_prepare_ahb_clocks();
+#endif
 	mipi_dsi_ahb_ctrl(1);
 	mipi_dsi_phy_ctrl(1);
 	mipi_dsi_clk_enable();
@@ -3370,8 +3373,9 @@ void mdp_footswitch_ctrl(boolean on)
 	mipi_dsi_unprepare_clocks();
 	mipi_dsi_phy_ctrl(0);
 	mipi_dsi_ahb_ctrl(0);
+#ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
 	mipi_dsi_unprepare_ahb_clocks();
-
+#endif
 	if (dsi_pll_vdda)
 		regulator_disable(dsi_pll_vdda);
 
