@@ -20,6 +20,7 @@
 #endif
 #include <asm/unaligned.h>
 #include <net/mac80211.h>
+#include <linux/export.h>
 
 #include "ath.h"
 #include "reg.h"
