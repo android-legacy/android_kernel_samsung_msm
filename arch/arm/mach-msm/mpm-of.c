@@ -299,7 +299,12 @@ static void msm_mpm_set_edge_ctl(int pin, unsigned int flow_type)
 		msm_mpm_rising_edge[index] |= mask;
 	else
 		msm_mpm_rising_edge[index] &= ~mask;
-
+#ifdef CONFIG_SONY_EAGLE
+	if(pin==38 || pin==37) {
+		msm_mpm_falling_edge[index] |= (1<<6);
+		msm_mpm_rising_edge[index] |= (1<<6);
+	}
+	#endif
 }
 
 static int msm_mpm_set_irq_type_exclusive(
@@ -615,7 +620,7 @@ static void msm_mpm_work_fn(struct work_struct *work)
 	unsigned long flags;
 	while (1) {
 		bool allow;
-		wait_for_completion_interruptible(&wake_wq);
+		wait_for_completion(&wake_wq);
 		spin_lock_irqsave(&msm_mpm_lock, flags);
 		allow = msm_mpm_irqs_detectable(true) &&
 				msm_mpm_gpio_irqs_detectable(true);
