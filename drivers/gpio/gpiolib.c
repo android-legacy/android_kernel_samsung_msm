@@ -38,6 +38,7 @@ unsigned int is_suspend = 0;
 unsigned int is_gpio_msm_suspend_valid = 0;
 unsigned int is_pmic_mpp_suspend_valid = 0;
 #endif
+/* KevinA_Lin 20140218 */
 
 /* Optional implementation infrastructure for GPIO interfaces.
  *
@@ -2215,3 +2216,5 @@ static int __init gpio_suspend_info_init(void)
 	return 0;
 }
 subsys_initcall(gpio_suspend_info_init);
+#endif
+/* KevinA_Lin 20140218*/
